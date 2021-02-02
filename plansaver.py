@@ -1,105 +1,104 @@
-from tkinter import *
-from datetime import datetime
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkcalendar import Calendar, DateEntry
+import sqlite3 as sq
 
-# Tkinter
-root = Tk()
-root.title("Plan Saver")
+root = tk.Tk()
+root.title('Planner')
+root.geometry("530x300+500+500")
 
-# blanks and texts grids
-e = Entry(root, width=20)
-e.grid(row=0, column=5)
-et = Label(root, text="Search: ")
-et.grid(row=0, column=4)
+#  Making a database file called "planner.db"
+conn = sq.connect('PlannerDB.db')
 
-d = Entry(root, width=20)
-d.grid(row=1, column=5)
-dt = Label(root, text="Content: ")
-dt.grid(row=1, column=4)
+# The database will be saved in the location where your 'py' file is saved
+cur = conn.cursor()
 
-de = Entry(root, width=20)
-de.grid(row=2, column=5)
-det = Label(root, text="Delete: ")
-det.grid(row=2, column=4)
+# Create table - PLANNER
+cur.execute('''CREATE TABLE IF NOT EXISTS PLANNER
+             ([Tasks] text, [Date] date)''')
 
+task = []
 
-# Function of counting lines
-def counting_the_number_of_lines():
-    number_of_lines = 0
-    thefile = open("your text file route")
-    while 1:
-        buffer = thefile.read(65536)
-        if not buffer:
-            break
-        number_of_lines += buffer.count('\n')
-    return number_of_lines
+# clear tkinter listbox
+def clearList():
+    t.delete(0,'end')
 
 
-# Function of Save
-def myclick():
-    content = d.get()
-    with open("your text file route", 'a+') as f:
-        f.write("\n")
-        f.write(str(datetime.date(datetime.now())))
-        f.write(" '" + str(counting_the_number_of_lines()) + "'")
-        f.write(" - ")
-        f.write(content)
-        f.write("\n")
+def addTask():
+    word = e1.get()
+    date = cal.get_date()
+    rows = [(word, date)]
+    if len(word)==0:
+        messagebox.showinfo('Empty Entry', 'Enter task name')
+    elif l1.cget("text")=="":
+        messagebox.showinfo('Empty Entry', 'Enter date')
+    else:
+        task.append(word)
+        cur.executemany('INSERT INTO PLANNER VALUES (?, ?)', rows)
+        selectDate()
+        e1.delete(0,'end')
 
 
-# Function of Search
-def rice():
-    n = 0
-    with open("your text file route", 'r') as f:
-        for line in f.readlines():
-            if not line.find(e.get()):
-                texts = Label(root, text=line)
-                texts.grid(row=n, column=6)
-                n += 1
-    h = Label(root, text="Searched well")
-    h.grid(row=7, column=5)
+# If the value you delete exists then it also gets deleted on any dates.
+def delOne():
+    try:
+        val = t.get(t.curselection())
+        cur.execute('DELETE FROM PLANNER WHERE Tasks = (?)', (val,))
+        selectDate()
+    except:
+        messagebox.showinfo('Cannot Delete', 'No Task Item Selected')
 
 
-# Function of delete
-def delete():
-    with open("your text file route", "r+") as f:
-        new_f = f.readlines()
-        f.seek(0)
-        for line in new_f:
-            if de.get() not in line:
-                f.write(line)
-        f.truncate()
-    h = Label(root, text="Deleted well")
-    h.grid(row=7, column=5)
+def deleteAll():
+    mb = messagebox.askyesno('Delete All','Are you sure?')
+    date = cal.get_date()
+    if mb==True:
+        cur.execute('DELETE FROM PLANNER WHERE Date = (?)', (date,))
+        selectDate()
 
 
-# Function of clear
-def clear():
-    for i in range(100):
-        texts1 = Label(root, text="\t\t\t\t\t\t\t\t")
-        texts1.grid(row=i, column=6)
-        texts2 = Label(root, text="\t\t\t\t\t\t\t\t")
-        texts2.grid(row=i+1, column=6)
-        texts3 = Label(root, text="\t\t\t\t\t\t\t\t")
-        texts3.grid(row=i+2, column=6)
-    h = Label(root, text="Cleared well")
-    h.grid(row=7, column=5)
+def bye():
+    root.destroy()
 
 
-# Save Button
-save_Button = Button(root, text="Save", highlightbackground='#3E4149', command=myclick)
-save_Button.grid(row=3, column=5)
+def selectDate():
+    l1["text"] = cal.get_date()
+    clearList()
+    cur.execute("SELECT * FROM PLANNER")
+    values = []
+    for val in cur:
+        if (str(cal.get_date()) == val[1]):
+            values.append(val[0])
 
-# Search Button
-search_button = Button(root, text="Search", highlightbackground='#3E4149', command=rice)
-search_button.grid(row=6, column=5)
+    for i in values:
+        t.insert("end", i)
 
-# Delete Button
-delete_button = Button(root, text="Delete", highlightbackground='#3E4149', command=delete)
-delete_button.grid(row=4, column=5)
 
-# Clear Button
-clear_button = Button(root, text="Clear", highlightbackground='#3E4149', command=clear)
-clear_button.grid(row=5, column=5)
+l1 = ttk.Label(root, text="")
+l1.place(x=370 ,y=30)
+l2 = ttk.Label(root, text='Enter down below')
+e1 = ttk.Entry(root, width=21)
+t = tk.Listbox(root, height=11, selectmode='SINGLE')
+b1 = ttk.Button(root, text='Add task', width=20, command=addTask)
+b2 = ttk.Button(root, text='Delete', width=20, command=delOne)
+b3 = ttk.Button(root, text='Delete all', width=20, command=deleteAll)
+b4 = ttk.Button(root, text='Exit', width=20, command=bye)
+b5 = ttk.Button(root, text='Select', width=20, command=selectDate)
+cal = DateEntry(root, width=30, bg="darkblue", fg="black", year=2021)
+cal.grid()
 
-# End of Tkinter
+
+#Place geometry
+l2.place(x=90, y=50)
+e1.place(x=50, y=80)
+b1.place(x=40, y=110)
+b2.place(x=40, y=140)
+b3.place(x=40, y=170)
+b4.place(x=40, y =200)
+b5.place(x=300, y=0)
+t.place(x=320, y=50)
 root.mainloop()
+
+conn.commit()
+cur.close()
